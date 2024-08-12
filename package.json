@@ -1,47 +1,73 @@
 {
   "name": "electron-react-js-template",
   "version": "1.0.0",
+  "description": "A professional Electron-React application template",
+  "author": "Your Name",
+  "license": "MIT",
   "private": true,
   "main": "electron/main.js",
+  "homepage": "./",
   "dependencies": {
     "electron-is-dev": "^2.0.0",
     "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "react-dom": "^18.2.0",
+    "react-router-dom": "^6.11.1"
   },
   "devDependencies": {
     "@babel/core": "^7.21.8",
     "@babel/preset-env": "^7.21.5",
     "@babel/preset-react": "^7.18.6",
+    "@testing-library/jest-dom": "^5.16.5",
+    "@testing-library/react": "^14.0.0",
+    "@testing-library/user-event": "^14.4.3",
     "babel-jest": "^29.5.0",
     "concurrently": "^8.0.1",
     "cross-env": "^7.0.3",
     "electron": "^24.2.0",
     "electron-builder": "^23.6.0",
+    "electron-devtools-installer": "^3.2.0",
     "eslint": "^8.39.0",
     "eslint-config-prettier": "^8.8.0",
     "eslint-plugin-react": "^7.32.2",
+    "eslint-plugin-react-hooks": "^4.6.0",
+    "husky": "^8.0.3",
     "jest": "^29.5.0",
+    "lint-staged": "^13.2.2",
     "prettier": "^2.8.8",
     "react-scripts": "5.0.1",
     "tailwindcss": "^3.3.2",
     "wait-on": "^7.0.1"
   },
   "scripts": {
+    "start": "concurrently \"npm run react-start\" \"npm run electron-start\"",
+    "build": "npm run react-build && npm run electron-build",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject",
+    "lint": "eslint .",
+    "lint:fix": "eslint --fix .",
+    "format": "prettier --write \"**/*.{js,jsx,json,md}\"",
     "react-start": "react-scripts start",
     "react-build": "react-scripts build",
-    "react-test": "react-scripts test",
-    "react-eject": "react-scripts eject",
-    "electron-build": "babel electron -d build/electron",
+    "electron-build": "electron-builder",
     "electron-start": "wait-on tcp:3000 && electron .",
-    "start": "concurrently \"cross-env BROWSER=none npm run react-start\" \"npm run electron-start\"",
-    "build": "npm run react-build && npm run electron-build && electron-builder",
-    "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "release": "npm run build && electron-builder --publish=always",
+    "postinstall": "electron-builder install-app-deps",
+    "precommit": "lint-staged"
   },
   "eslintConfig": {
     "extends": [
       "react-app",
-      "react-app/jest"
+      "react-app/jest",
+      "plugin:react-hooks/recommended"
+    ]
+  },
+  "lint-staged": {
+    "*.{js,jsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,md}": [
+      "prettier --write"
     ]
   },
   "browserslist": {
@@ -57,14 +83,45 @@
     ]
   },
   "build": {
-    "extends": null,
-    "appId": "com.example.electron-cra",
+    "appId": "com.yourcompany.${name}",
+    "productName": "Your App Name",
     "files": [
       "build/**/*",
-      "node_modules/**/*"
+      "electron/**/*",
+      "package.json"
     ],
     "directories": {
       "buildResources": "assets"
+    },
+    "mac": {
+      "category": "public.app-category.developer-tools"
+    },
+    "dmg": {
+      "contents": [
+        {
+          "x": 130,
+          "y": 220
+        },
+        {
+          "x": 410,
+          "y": 220,
+          "type": "link",
+          "path": "/Applications"
+        }
+      ]
+    },
+    "win": {
+      "target": [
+        "nsis"
+      ]
+    },
+    "linux": {
+      "target": [
+        "deb",
+        "rpm",
+        "AppImage"
+      ],
+      "category": "Development"
     }
   }
 }
