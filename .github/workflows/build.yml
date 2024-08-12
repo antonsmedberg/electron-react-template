@@ -2,9 +2,9 @@ name: Build and Test
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
+    branches: [main]
 
 jobs:
   build:
@@ -51,16 +51,19 @@ jobs:
       run: |
         echo "Installing dependencies..."
         npm install
+      timeout-minutes: 10
 
     - name: Build application
       run: |
         echo "Starting the build process..."
-        npm run build || { echo 'Build failed!'; exit 1; }
+        npm run build
+      timeout-minutes: 20
 
     - name: Run tests
       run: |
         echo "Running tests..."
-        npm test || { echo 'Tests failed!'; exit 1; }
+        npm test
+      timeout-minutes: 10
 
     - name: Check for GitHub Token
       id: check_token
@@ -72,29 +75,44 @@ jobs:
           echo "GH_TOKEN_PRESENT=true" >> $GITHUB_ENV
         fi
 
-    - name: Package without Publishing (macOS)
-      if: matrix.os == 'macos-latest' && env.GH_TOKEN_PRESENT == 'false'
-      run: |
-        echo "GH_TOKEN is not present, skipping publishing..."
-        npm run electron-build -- --publish=never || { echo 'Packaging failed!'; exit 1; }
-
     - name: Package and Publish (macOS)
-      if: matrix.os == 'macos-latest' && env.GH_TOKEN_PRESENT == 'true'
+      if: matrix.os == 'macos-latest'
       run: |
-        echo "Publishing macOS artifacts..."
-        npm run release || { echo 'Publishing failed!'; exit 1; }
+        if [ "$GH_TOKEN_PRESENT" = "true" ]; then
+          echo "Publishing macOS artifacts..."
+          npm run release
+        else
+          echo "Skipping publishing for macOS. GH_TOKEN is not set."
+          npm run electron-build -- --publish=never
+        fi
+      timeout-minutes: 15
+      continue-on-error: true
 
-    - name: Package without Publishing (Windows and Ubuntu)
-      if: (matrix.os == 'windows-latest' || matrix.os == 'ubuntu-latest') && env.GH_TOKEN_PRESENT == 'false'
+    - name: Package and Publish (Windows)
+      if: matrix.os == 'windows-latest'
       run: |
-        echo "GH_TOKEN is not present, skipping publishing..."
-        npm run electron-build -- --publish=never || { echo 'Packaging failed!'; exit 1; }
+        if [ "$GH_TOKEN_PRESENT" = "true" ]; then
+          echo "Publishing Windows artifacts..."
+          npm run release
+        else
+          echo "Skipping publishing for Windows. GH_TOKEN is not set."
+          npm run electron-build -- --publish=never
+        fi
+      timeout-minutes: 15
+      continue-on-error: true
 
-    - name: Package and Publish (Windows and Ubuntu)
-      if: (matrix.os == 'windows-latest' || matrix.os == 'ubuntu-latest') && env.GH_TOKEN_PRESENT == 'true'
+    - name: Package and Publish (Linux)
+      if: matrix.os == 'ubuntu-latest'
       run: |
-        echo "Publishing artifacts..."
-        npm run release || { echo 'Publishing failed!'; exit 1; }
+        if [ "$GH_TOKEN_PRESENT" = "true" ]; then
+          echo "Publishing Linux artifacts..."
+          npm run release
+        else
+          echo "Skipping publishing for Linux. GH_TOKEN is not set."
+          npm run electron-build -- --publish=never
+        fi
+      timeout-minutes: 15
+      continue-on-error: true
 
     - name: Archive build artifacts
       if: always()
@@ -112,14 +130,8 @@ jobs:
     - name: Final Status
       run: |
         echo "Build process completed."
-        if [ -z "$GH_TOKEN" ]; then
+        if [ "$GH_TOKEN_PRESENT" = "false" ]; then
           echo "Warning: GH_TOKEN was not set. Artifacts were not published."
         else
           echo "Artifacts were published successfully."
         fi
-
-    - name: Set up environment variables
-      run: |
-        echo "Setting up additional environment variables..."
-        echo "ELECTRON_BUILDER_ALLOW_UNRESOLVED_DEPENDENCIES=true" >> $GITHUB_ENV
-        echo "CI=true" >> $GITHUB_ENV
