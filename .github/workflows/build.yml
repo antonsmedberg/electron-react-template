@@ -123,6 +123,3 @@ jobs:
         echo "Setting up additional environment variables..."
         echo "ELECTRON_BUILDER_ALLOW_UNRESOLVED_DEPENDENCIES=true" >> $GITHUB_ENV
         echo "CI=true" >> $GITHUB_ENV
-
-
-
