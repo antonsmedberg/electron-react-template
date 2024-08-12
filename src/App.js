@@ -1,18 +1,18 @@
-import { useState } from 'react'
+import { useState } from 'react';
 
-import Button from './components/ui/Button'
-import useElectronAPI from './hooks/useElectronAPI'
+import Button from './components/ui/Button';
+import useElectronAPI from './hooks/useElectronAPI';
 
 function App() {
-  const electronAPI = useElectronAPI()
-  const [message, setMessage] = useState('')
+  const electronAPI = useElectronAPI();
+  const [message, setMessage] = useState('');
 
   const handleClick = () => {
     if (electronAPI) {
-      electronAPI.sendMessage('Hello from React!')
-      setMessage('Message sent to Electron!')
+      electronAPI.sendMessage('Hello from React!');
+      setMessage('Message sent to Electron!');
     }
-  }
+  };
 
   return (
     <div className="App">
@@ -22,7 +22,7 @@ function App() {
         {message && <p>{message}</p>}
       </header>
     </div>
-  )
+  );
 }
 
-export default App
+export default App;
