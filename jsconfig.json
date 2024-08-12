@@ -1,11 +1,19 @@
 {
   "compilerOptions": {
-    "baseUrl": "src",
+    "baseUrl": ".",
     "paths": {
-      "*": ["*", "src/*"]
+      "@/*": ["src/*"]
     },
+    "target": "es6",
+    "module": "commonjs",
+    "allowSyntheticDefaultImports": true,
     "jsx": "react",
-    "checkJs": true
+    "checkJs": true,
+    "strict": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "resolveJsonModule": true
   },
-  "include": ["src", "electron"]
+  "include": ["src", "electron"],
+  "exclude": ["node_modules", "build"]
 }
