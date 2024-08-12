@@ -17,7 +17,6 @@ jobs:
     env:
       CI: true  # Ensures the build is aware it’s running in a CI environment
       ELECTRON_BUILDER_ALLOW_UNRESOLVED_DEPENDENCIES: true
-      GH_TOKEN: ${{ secrets.GH_TOKEN }}  # Reference the GitHub Personal Access Token from secrets
 
     steps:
     - name: Checkout code
@@ -52,19 +51,30 @@ jobs:
       run: npm install
 
     - name: Build application
-      run: npm run build
+      run: |
+        echo "Starting the build process..."
+        npm run build
 
     - name: Run tests
-      run: npm test
+      run: |
+        echo "Running tests..."
+        npm test
 
-    - name: Package and Publish (macOS Only)
-      if: matrix.os == 'macos-latest'
+    - name: Check for GitHub Token
+      id: check_token
       run: |
         if [ -z "$GH_TOKEN" ]; then
-          echo "GH_TOKEN is not set. Skipping publication."
+          echo "GH_TOKEN is not set."
+          echo "GH_TOKEN_PRESENT=false" >> $GITHUB_ENV
         else
-          npm run release
+          echo "GH_TOKEN_PRESENT=true" >> $GITHUB_ENV
         fi
+
+    - name: Package and Publish (macOS Only)
+      if: matrix.os == 'macos-latest' && env.GH_TOKEN_PRESENT == 'true'
+      run: |
+        echo "Publishing macOS artifacts..."
+        npm run release
 
     - name: Archive build artifacts
       if: always()
@@ -76,10 +86,19 @@ jobs:
     - name: Cleanup caches
       if: failure()
       run: |
+        echo "Cleaning up npm cache..."
         npm cache clean --force
+
+    - name: Final Status
+      run: |
+        echo "Build completed."
+        if [ -z "$GH_TOKEN" ]; then
+          echo "Warning: GH_TOKEN was not set. Artifacts were not published."
+        fi
 
     - name: Set up environment variables
       run: |
+        echo "Setting up additional environment variables..."
         echo "ELECTRON_BUILDER_ALLOW_UNRESOLVED_DEPENDENCIES=true" >> $GITHUB_ENV
         echo "CI=true" >> $GITHUB_ENV
 
