@@ -84,16 +84,16 @@ jobs:
         echo "Publishing macOS artifacts..."
         npm run release || { echo 'Publishing failed!'; exit 1; }
 
-    - name: Package without Publishing (Windows)
-      if: matrix.os == 'windows-latest' && env.GH_TOKEN_PRESENT == 'false'
+    - name: Package without Publishing (Windows and Ubuntu)
+      if: (matrix.os == 'windows-latest' || matrix.os == 'ubuntu-latest') && env.GH_TOKEN_PRESENT == 'false'
       run: |
         echo "GH_TOKEN is not present, skipping publishing..."
         npm run electron-build -- --publish=never || { echo 'Packaging failed!'; exit 1; }
 
-    - name: Package and Publish (Windows)
-      if: matrix.os == 'windows-latest' && env.GH_TOKEN_PRESENT == 'true'
+    - name: Package and Publish (Windows and Ubuntu)
+      if: (matrix.os == 'windows-latest' || matrix.os == 'ubuntu-latest') && env.GH_TOKEN_PRESENT == 'true'
       run: |
-        echo "Publishing Windows artifacts..."
+        echo "Publishing artifacts..."
         npm run release || { echo 'Publishing failed!'; exit 1; }
 
     - name: Archive build artifacts
