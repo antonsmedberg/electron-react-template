@@ -41,14 +41,14 @@ jobs:
         echo "Running ESLint with auto-fix..."
         npm run lint:fix || echo "ESLint found issues, but build will continue."
       timeout-minutes: 5
-      continue-on-error: true  # Continue the build process even if linting fixes issues
+      continue-on-error: true
 
     - name: Check for remaining linting errors
       run: |
         echo "Checking for remaining linting errors..."
         npm run lint
       timeout-minutes: 5
-      continue-on-error: true  # Continue the build process even if linting has errors
+      continue-on-error: true
 
     - name: Build application
       run: |
@@ -74,44 +74,44 @@ jobs:
         fi
       timeout-minutes: 5
 
-    - name: Package and Publish (macOS)
+    - name: Package without Publishing (macOS)
       if: matrix.os == 'macos-latest'
       run: |
         echo "Handling macOS specific packaging..."
-        if security find-identity -v -p codesigning; then
-          echo "Code signing identity found, proceeding with signing and publishing."
-          npm run release
-        else
-          echo "No code signing identity found, skipping code signing."
+        if [ "$GH_TOKEN_PRESENT" = "false" ]; then
+          echo "Skipping publishing due to missing GH_TOKEN."
           npm run electron-build -- --publish=never
+        else
+          echo "Publishing macOS artifacts..."
+          npm run release
         fi
       timeout-minutes: 20
       continue-on-error: true
 
-    - name: Package and Publish (Windows)
+    - name: Package without Publishing (Windows)
       if: matrix.os == 'windows-latest'
       run: |
         echo "Handling Windows specific packaging..."
-        if [ "$GH_TOKEN_PRESENT" = "true" ]; then
+        if [ "$GH_TOKEN_PRESENT" = "false" ]; then
+          echo "Skipping publishing due to missing GH_TOKEN."
+          npm run electron-build -- --publish=never
+        else
           echo "Publishing Windows artifacts..."
           npm run release
-        else
-          echo "GH_TOKEN is not set. Skipping publishing."
-          npm run electron-build -- --publish=never
         fi
       timeout-minutes: 20
       continue-on-error: true
 
-    - name: Package and Publish (Linux)
+    - name: Package without Publishing (Linux)
       if: matrix.os == 'ubuntu-latest'
       run: |
         echo "Handling Linux specific packaging..."
-        if [ "$GH_TOKEN_PRESENT" = "true" ]; then
+        if [ "$GH_TOKEN_PRESENT" = "false" ]; then
+          echo "Skipping publishing due to missing GH_TOKEN."
+          npm run electron-build -- --publish=never
+        else
           echo "Publishing Linux artifacts..."
           npm run release
-        else
-          echo "GH_TOKEN is not set. Skipping publishing."
-          npm run electron-build -- --publish=never
         fi
       timeout-minutes: 20
       continue-on-error: true
