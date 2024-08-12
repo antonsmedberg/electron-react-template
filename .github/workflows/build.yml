@@ -1,4 +1,4 @@
-name: Build and Test
+name: Build, Test, and Deploy
 
 on:
   push:
@@ -17,6 +17,7 @@ jobs:
     env:
       CI: true
       ELECTRON_BUILDER_ALLOW_UNRESOLVED_DEPENDENCIES: true
+      NODE_OPTIONS: "--max_old_space_size=4096"  # Increase memory for Node.js
 
     steps:
     - name: Checkout code
@@ -32,21 +33,18 @@ jobs:
       run: |
         echo "Setting up dependencies for ${{ matrix.os }}..."
       timeout-minutes: 10
-      continue-on-error: false
 
     - name: Install additional dependencies for Linux
       if: matrix.os == 'ubuntu-latest'
       run: |
         sudo apt-get update && sudo apt-get install -y libgbm-dev
       timeout-minutes: 10
-      continue-on-error: false
 
     - name: Install additional dependencies for macOS
       if: matrix.os == 'macos-latest'
       run: |
         brew install gnu-tar
       timeout-minutes: 10
-      continue-on-error: false
 
     - name: Cache Node.js modules
       uses: actions/cache@v3
@@ -59,23 +57,32 @@ jobs:
     - name: Install dependencies
       run: |
         echo "Installing project dependencies..."
-        npm install
+        npm ci
       timeout-minutes: 15
-      continue-on-error: false
+
+    - name: Lint codebase
+      run: |
+        echo "Linting codebase..."
+        npm run lint
+      timeout-minutes: 5
+
+    - name: Static security analysis
+      run: |
+        echo "Running security analysis..."
+        npm audit --audit-level=high || echo "Security vulnerabilities found. Review required."
+      timeout-minutes: 5
 
     - name: Build application
       run: |
         echo "Building the application..."
         npm run build
       timeout-minutes: 30
-      continue-on-error: false
 
     - name: Run tests
       run: |
         echo "Running tests..."
-        npm test
+        npm test -- --ci --reporters=jest-junit --coverage
       timeout-minutes: 15
-      continue-on-error: false
 
     - name: Check for GitHub Token
       id: check_token
@@ -88,7 +95,6 @@ jobs:
           echo "GH_TOKEN_PRESENT=true" >> $GITHUB_ENV
         fi
       timeout-minutes: 5
-      continue-on-error: false
 
     - name: Package and Publish (macOS)
       if: matrix.os == 'macos-latest'
@@ -132,6 +138,15 @@ jobs:
       timeout-minutes: 20
       continue-on-error: true
 
+    - name: Generate changelog and version bump
+      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      run: |
+        echo "Generating changelog and bumping version..."
+        npm version patch -m "chore(release): %s"
+        npx auto-changelog -p
+        git push --follow-tags
+      timeout-minutes: 10
+
     - name: Archive build artifacts
       if: always()
       uses: actions/upload-artifact@v3
@@ -156,3 +171,13 @@ jobs:
           echo "Build completed successfully, and artifacts were published."
         fi
       continue-on-error: false
+
+    - name: Notify on Slack
+      if: always()
+      uses: 8398a7/action-slack@v3
+      with:
+        status: ${{ job.status }}
+        author_name: 'GitHub Actions'
+        fields: repo,message,commit,author
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
