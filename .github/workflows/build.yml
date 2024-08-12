@@ -17,7 +17,7 @@ jobs:
     env:
       CI: true
       ELECTRON_BUILDER_ALLOW_UNRESOLVED_DEPENDENCIES: true
-      NODE_OPTIONS: "--max_old_space_size=4096"  # Increase memory for Node.js
+      NODE_OPTIONS: "--max_old_space_size=4096"
 
     steps:
     - name: Checkout code
@@ -29,36 +29,18 @@ jobs:
         node-version: ${{ matrix.node-version }}
         cache: 'npm'
 
-    - name: Set up environment dependencies
+    - name: Ensure package-lock.json is in sync
       run: |
-        echo "Setting up dependencies for ${{ matrix.os }}..."
-      timeout-minutes: 10
-
-    - name: Install additional dependencies for Linux
-      if: matrix.os == 'ubuntu-latest'
-      run: |
-        sudo apt-get update && sudo apt-get install -y libgbm-dev
-      timeout-minutes: 10
-
-    - name: Install additional dependencies for macOS
-      if: matrix.os == 'macos-latest'
-      run: |
-        brew install gnu-tar
-      timeout-minutes: 10
-
-    - name: Cache Node.js modules
-      uses: actions/cache@v3
-      with:
-        path: ~/.npm
-        key: ${{ runner.os }}-node-${{ hashFiles('package-lock.json') }}
-        restore-keys: |
-          ${{ runner.os }}-node-
+        echo "Ensuring package-lock.json is in sync..."
+        npm install --package-lock-only
+        git diff --exit-code package-lock.json || (echo "package-lock.json was updated, committing changes..." && git commit -am "chore: sync package-lock.json" && git push)
 
     - name: Install dependencies
       run: |
         echo "Installing project dependencies..."
         npm ci
       timeout-minutes: 15
+      continue-on-error: false
 
     - name: Lint codebase
       run: |
