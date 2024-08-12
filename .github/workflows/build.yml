@@ -15,7 +15,7 @@ jobs:
         node-version: [18.x]
 
     env:
-      CI: true  # Ensures the build is aware it’s running in a CI environment
+      CI: true
       ELECTRON_BUILDER_ALLOW_UNRESOLVED_DEPENDENCIES: true
 
     steps:
@@ -55,12 +55,12 @@ jobs:
     - name: Build application
       run: |
         echo "Starting the build process..."
-        npm run build
+        npm run build || { echo 'Build failed!'; exit 1; }
 
     - name: Run tests
       run: |
         echo "Running tests..."
-        npm test
+        npm test || { echo 'Tests failed!'; exit 1; }
 
     - name: Check for GitHub Token
       id: check_token
@@ -72,17 +72,29 @@ jobs:
           echo "GH_TOKEN_PRESENT=true" >> $GITHUB_ENV
         fi
 
-    - name: Package and Publish (macOS Only)
+    - name: Package without Publishing (macOS)
+      if: matrix.os == 'macos-latest' && env.GH_TOKEN_PRESENT == 'false'
+      run: |
+        echo "GH_TOKEN is not present, skipping publishing..."
+        npm run electron-build -- --publish=never || { echo 'Packaging failed!'; exit 1; }
+
+    - name: Package and Publish (macOS)
       if: matrix.os == 'macos-latest' && env.GH_TOKEN_PRESENT == 'true'
       run: |
         echo "Publishing macOS artifacts..."
-        npm run release || echo "Error during release, skipping publishing step."
+        npm run release || { echo 'Publishing failed!'; exit 1; }
 
-    - name: Package and Publish (Windows Only)
+    - name: Package without Publishing (Windows)
+      if: matrix.os == 'windows-latest' && env.GH_TOKEN_PRESENT == 'false'
+      run: |
+        echo "GH_TOKEN is not present, skipping publishing..."
+        npm run electron-build -- --publish=never || { echo 'Packaging failed!'; exit 1; }
+
+    - name: Package and Publish (Windows)
       if: matrix.os == 'windows-latest' && env.GH_TOKEN_PRESENT == 'true'
       run: |
         echo "Publishing Windows artifacts..."
-        npm run release || echo "Error during release, skipping publishing step."
+        npm run release || { echo 'Publishing failed!'; exit 1; }
 
     - name: Archive build artifacts
       if: always()
