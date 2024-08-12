@@ -20,6 +20,7 @@ const tryConnection = () => client.connect({port: port}, () => {
 
 tryConnection();
 
-client.on('error', (error) => {
+client.on('error', (_error) => {
+    console.log('Error connecting to React dev server');
     setTimeout(tryConnection, 1000);
 });
