@@ -28,9 +28,10 @@ jobs:
         sudo apt-get install -y libgbm-dev
     - name: Generate package-lock.json if needed
       run: |
-        if [ ! -f package-lock.json ]; then
+        if (!(Test-Path package-lock.json)) {
           npm install --package-lock-only
-        fi
+        }
+      shell: pwsh
     - name: Install dependencies
       run: npm ci
     - name: Build
