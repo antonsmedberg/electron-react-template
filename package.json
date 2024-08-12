@@ -52,7 +52,7 @@
   },
   "scripts": {
     "start": "concurrently \"npm run react-start\" \"npm run electron-start\"",
-    "build": "npm run react-build && npm run electron-build",
+    "build": "npm run react-build && npm run copy-electron && npm run electron-build"
     "test": "react-scripts test --env=jsdom --passWithNoTests",
     "eject": "react-scripts eject",
     "lint": "eslint .",
@@ -61,6 +61,7 @@
     "react-start": "cross-env BROWSER=none react-scripts start",
     "react-build": "react-scripts build",
     "electron-start": "wait-on tcp:3000 && electron .",
+    "copy-electron": "cp electron/main.js build/electron.js",
     "electron-build": "electron-builder",
     "release": "npm run build && electron-builder --publish=always",
     "postinstall": "electron-builder install-app-deps",
