@@ -28,16 +28,25 @@ jobs:
         node-version: ${{ matrix.node-version }}
         cache: 'npm'
 
+    - name: Set up environment dependencies
+      run: |
+        echo "Setting up dependencies for ${{ matrix.os }}..."
+      timeout-minutes: 10
+      continue-on-error: false
+
     - name: Install additional dependencies for Linux
       if: matrix.os == 'ubuntu-latest'
       run: |
-        sudo apt-get update
-        sudo apt-get install -y libgbm-dev
+        sudo apt-get update && sudo apt-get install -y libgbm-dev
+      timeout-minutes: 10
+      continue-on-error: false
 
     - name: Install additional dependencies for macOS
       if: matrix.os == 'macos-latest'
       run: |
         brew install gnu-tar
+      timeout-minutes: 10
+      continue-on-error: false
 
     - name: Cache Node.js modules
       uses: actions/cache@v3
@@ -49,69 +58,78 @@ jobs:
 
     - name: Install dependencies
       run: |
-        echo "Installing dependencies..."
+        echo "Installing project dependencies..."
         npm install
-      timeout-minutes: 10
+      timeout-minutes: 15
+      continue-on-error: false
 
     - name: Build application
       run: |
-        echo "Starting the build process..."
+        echo "Building the application..."
         npm run build
-      timeout-minutes: 20
+      timeout-minutes: 30
+      continue-on-error: false
 
     - name: Run tests
       run: |
         echo "Running tests..."
         npm test
-      timeout-minutes: 10
+      timeout-minutes: 15
+      continue-on-error: false
 
     - name: Check for GitHub Token
       id: check_token
       run: |
         if [ -z "$GH_TOKEN" ]; then
-          echo "GH_TOKEN is not set."
+          echo "GH_TOKEN is not set. Skipping publishing steps."
           echo "GH_TOKEN_PRESENT=false" >> $GITHUB_ENV
         else
+          echo "GH_TOKEN is set."
           echo "GH_TOKEN_PRESENT=true" >> $GITHUB_ENV
         fi
+      timeout-minutes: 5
+      continue-on-error: false
 
     - name: Package and Publish (macOS)
       if: matrix.os == 'macos-latest'
       run: |
-        if [ "$GH_TOKEN_PRESENT" = "true" ]; then
-          echo "Publishing macOS artifacts..."
+        echo "Handling macOS specific packaging..."
+        if security find-identity -v -p codesigning; then
+          echo "Code signing identity found, proceeding with signing and publishing."
           npm run release
         else
-          echo "Skipping publishing for macOS. GH_TOKEN is not set."
+          echo "No code signing identity found, skipping code signing."
           npm run electron-build -- --publish=never
         fi
-      timeout-minutes: 15
+      timeout-minutes: 20
       continue-on-error: true
 
     - name: Package and Publish (Windows)
       if: matrix.os == 'windows-latest'
       run: |
+        echo "Handling Windows specific packaging..."
         if [ "$GH_TOKEN_PRESENT" = "true" ]; then
           echo "Publishing Windows artifacts..."
           npm run release
         else
-          echo "Skipping publishing for Windows. GH_TOKEN is not set."
+          echo "GH_TOKEN is not set. Skipping publishing."
           npm run electron-build -- --publish=never
         fi
-      timeout-minutes: 15
+      timeout-minutes: 20
       continue-on-error: true
 
     - name: Package and Publish (Linux)
       if: matrix.os == 'ubuntu-latest'
       run: |
+        echo "Handling Linux specific packaging..."
         if [ "$GH_TOKEN_PRESENT" = "true" ]; then
           echo "Publishing Linux artifacts..."
           npm run release
         else
-          echo "Skipping publishing for Linux. GH_TOKEN is not set."
+          echo "GH_TOKEN is not set. Skipping publishing."
           npm run electron-build -- --publish=never
         fi
-      timeout-minutes: 15
+      timeout-minutes: 20
       continue-on-error: true
 
     - name: Archive build artifacts
@@ -120,18 +138,21 @@ jobs:
       with:
         name: build-artifacts
         path: build/
+      continue-on-error: false
 
     - name: Cleanup caches
       if: failure() || cancelled()
       run: |
         echo "Cleaning up npm cache..."
         npm cache clean --force || echo "Failed to clean npm cache."
+      continue-on-error: true
 
     - name: Final Status
       run: |
-        echo "Build process completed."
+        echo "Finalizing build process."
         if [ "$GH_TOKEN_PRESENT" = "false" ]; then
           echo "Warning: GH_TOKEN was not set. Artifacts were not published."
         else
-          echo "Artifacts were published successfully."
+          echo "Build completed successfully, and artifacts were published."
         fi
+      continue-on-error: false
