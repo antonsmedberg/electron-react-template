@@ -2,7 +2,10 @@
   "name": "electron-react-js-template",
   "version": "1.0.0",
   "description": "A professional Electron-React application template",
-  "author": "Your Name",
+  "author": {
+    "name": "Your Name",
+    "email": "youremail@example.com"
+  },
   "license": "MIT",
   "private": true,
   "main": "electron/main.js",
@@ -146,7 +149,8 @@
         "rpm",
         "AppImage"
       ],
-      "category": "Development"
+      "category": "Development",
+      "maintainer": "Your Name <youremail@example.com>"
     }
   }
 }
