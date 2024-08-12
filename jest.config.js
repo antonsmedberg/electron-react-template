@@ -1,6 +1,20 @@
 module.exports = {
   roots: ['<rootDir>/src'],
-  collectCoverageFrom: ['src/**/*.{js,jsx,ts,tsx}', '!src/**/*.d.ts'],
+  collectCoverageFrom: [
+    'src/**/*.{js,jsx,ts,tsx}',
+    '!src/**/*.d.ts',
+    '!src/index.js',
+    '!src/serviceWorker.js',
+    '!src/reportWebVitals.js',
+  ],
+  coverageThreshold: {
+    global: {
+      branches: 80,
+      functions: 80,
+      lines: 80,
+      statements: 80,
+    },
+  },
   setupFiles: ['react-app-polyfill/jsdom'],
   setupFilesAfterEnv: ['<rootDir>/src/setupTests.js'],
   testMatch: [
@@ -20,6 +34,7 @@ module.exports = {
   moduleNameMapper: {
     '^react-native$': 'react-native-web',
     '^.+\\.module\\.(css|sass|scss)$': 'identity-obj-proxy',
+    '^@/(.*)$': '<rootDir>/src/$1',
   },
   moduleFileExtensions: [
     'web.js',
@@ -38,4 +53,8 @@ module.exports = {
     'jest-watch-typeahead/testname',
   ],
   resetMocks: true,
+  verbose: true,
+  collectCoverage: true,
+  coverageReporters: ['text', 'lcov', 'clover'],
+  coverageDirectory: '<rootDir>/coverage',
 };
