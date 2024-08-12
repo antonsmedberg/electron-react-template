@@ -6,6 +6,9 @@ module.exports = {
     jest: true,
   },
   extends: [
+    'react-app',
+    'react-app/jest',
+    'plugin:prettier/recommended',
     'eslint:recommended',
     'plugin:react/recommended',
     'plugin:react-hooks/recommended',
