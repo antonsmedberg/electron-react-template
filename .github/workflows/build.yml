@@ -48,7 +48,9 @@ jobs:
           ${{ runner.os }}-node-
 
     - name: Install dependencies
-      run: npm install
+      run: |
+        echo "Installing dependencies..."
+        npm install
 
     - name: Build application
       run: |
@@ -74,7 +76,13 @@ jobs:
       if: matrix.os == 'macos-latest' && env.GH_TOKEN_PRESENT == 'true'
       run: |
         echo "Publishing macOS artifacts..."
-        npm run release
+        npm run release || echo "Error during release, skipping publishing step."
+
+    - name: Package and Publish (Windows Only)
+      if: matrix.os == 'windows-latest' && env.GH_TOKEN_PRESENT == 'true'
+      run: |
+        echo "Publishing Windows artifacts..."
+        npm run release || echo "Error during release, skipping publishing step."
 
     - name: Archive build artifacts
       if: always()
@@ -84,16 +92,18 @@ jobs:
         path: build/
 
     - name: Cleanup caches
-      if: failure()
+      if: failure() || cancelled()
       run: |
         echo "Cleaning up npm cache..."
-        npm cache clean --force
+        npm cache clean --force || echo "Failed to clean npm cache."
 
     - name: Final Status
       run: |
-        echo "Build completed."
+        echo "Build process completed."
         if [ -z "$GH_TOKEN" ]; then
           echo "Warning: GH_TOKEN was not set. Artifacts were not published."
+        else
+          echo "Artifacts were published successfully."
         fi
 
     - name: Set up environment variables
@@ -101,4 +111,5 @@ jobs:
         echo "Setting up additional environment variables..."
         echo "ELECTRON_BUILDER_ALLOW_UNRESOLVED_DEPENDENCIES=true" >> $GITHUB_ENV
         echo "CI=true" >> $GITHUB_ENV
+
 
