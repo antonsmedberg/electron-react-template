@@ -17,7 +17,6 @@ jobs:
     env:
       CI: true
       ELECTRON_BUILDER_ALLOW_UNRESOLVED_DEPENDENCIES: true
-      NODE_OPTIONS: "--max_old_space_size=4096"
 
     steps:
     - name: Checkout code
@@ -38,9 +37,10 @@ jobs:
     - name: Install dependencies
       run: |
         echo "Installing project dependencies..."
-        npm ci
+        npm install
+        echo "Installing Electron dependencies..."
+        npx electron-builder install-app-deps
       timeout-minutes: 15
-      continue-on-error: false
 
     - name: Lint codebase
       run: |
@@ -153,13 +153,3 @@ jobs:
           echo "Build completed successfully, and artifacts were published."
         fi
       continue-on-error: false
-
-    - name: Notify on Slack
-      if: always()
-      uses: 8398a7/action-slack@v3
-      with:
-        status: ${{ job.status }}
-        author_name: 'GitHub Actions'
-        fields: repo,message,commit,author
-      env:
-        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
