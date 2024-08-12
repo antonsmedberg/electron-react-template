@@ -14,6 +14,10 @@ jobs:
         os: [macos-latest, ubuntu-latest, windows-latest]
         node-version: [18.x]
 
+    env:
+      ELECTRON_BUILDER_ALLOW_UNRESOLVED_DEPENDENCIES: true
+      CI: true  # Ensures the build is aware it’s running in a CI environment
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v3
@@ -30,6 +34,14 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y libgbm-dev
 
+    - name: Cache Node.js modules
+      uses: actions/cache@v3
+      with:
+        path: ~/.npm
+        key: ${{ runner.os }}-node-${{ hashFiles('package-lock.json') }}
+        restore-keys: |
+          ${{ runner.os }}-node-
+
     - name: Install dependencies
       run: npm install
 
@@ -45,3 +57,26 @@ jobs:
       with:
         name: build-artifacts
         path: build/
+
+    - name: Cleanup caches
+      if: failure()
+      run: |
+        npm cache clean --force
+
+    - name: Set up environment variables
+      run: |
+        echo "ELECTRON_BUILDER_ALLOW_UNRESOLVED_DEPENDENCIES=true" >> $GITHUB_ENV
+        echo "CI=true" >> $GITHUB_ENV
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Install dependencies
+      run: npm install
+
+    - name: Deploy to production
+      run: npm run deploy  # Replace this with your deployment command
