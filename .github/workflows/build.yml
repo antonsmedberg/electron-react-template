@@ -32,7 +32,15 @@ jobs:
       run: |
         echo "Ensuring package-lock.json is in sync..."
         npm install --package-lock-only
-        git diff --exit-code package-lock.json || (echo "package-lock.json was updated, committing changes..." && git commit -am "chore: sync package-lock.json" && git push)
+        git diff --exit-code package-lock.json || (echo "package-lock.json was updated, committing changes..." && git config user.name "GitHub Actions" && git config user.email "actions@github.com" && git add package-lock.json && git commit -m "chore: sync package-lock.json")
+      continue-on-error: true
+
+    - name: Push changes if needed
+      if: steps.ensure_package-lock_json_is_in_sync.outcome == 'success' && github.event_name == 'push' && github.ref == 'refs/heads/main'
+      run: |
+        echo "Pushing changes..."
+        git push https://x-access-token:${{ secrets.GH_PAT }}@github.com/${{ github.repository }}.git HEAD:main
+      continue-on-error: true
 
     - name: Install dependencies
       run: |
