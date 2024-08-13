@@ -7,13 +7,15 @@ const version = packageJson.version;
 
 if (process.env.GH_TOKEN) {
   const repo = process.env.GITHUB_REPOSITORY;
-  
+
   try {
     console.log(`Deleting existing release v${version}...`);
     execSync(`gh release delete v${version} --yes`, { stdio: 'inherit' });
     console.log(`Deleted existing release v${version}.`);
   } catch (error) {
-    console.log(`No existing release v${version} found or failed to delete. Error: ${error.message}`);
+    console.log(
+      `No existing release v${version} found or failed to delete. Error: ${error.message}`
+    );
   }
 
   try {

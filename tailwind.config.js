@@ -14,8 +14,8 @@ module.exports = {
         sans: ['Inter var', ...require('tailwindcss/defaultTheme').fontFamily.sans],
       },
       spacing: {
-        '128': '32rem',
-        '144': '36rem',
+        128: '32rem',
+        144: '36rem',
       },
       borderRadius: {
         '4xl': '2rem',
