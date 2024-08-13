@@ -13,7 +13,9 @@ jobs:
       matrix:
         os: [macos-latest, ubuntu-latest, windows-latest]
         node-version: [18.x]
-
+      exclude:
+        - os: windows-latest
+          node-version: 18.x  # Example exclusion if not needed
     env:
       CI: true
       ELECTRON_BUILDER_ALLOW_UNRESOLVED_DEPENDENCIES: true
@@ -24,11 +26,18 @@ jobs:
       uses: actions/checkout@v3
       run: echo "Källa för kod har hämtats. (Source code checked out.)"
 
+    - name: Cache npm dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.npm
+        key: ${{ runner.os }}-node-${{ matrix.node-version }}-${{ hashFiles('**/package-lock.json') }}
+        restore-keys: |
+          ${{ runner.os }}-node-${{ matrix.node-version }}-
+
     - name: Set up Node.js ${{ matrix.node-version }}
       uses: actions/setup-node@v3
       with:
         node-version: ${{ matrix.node-version }}
-        cache: 'npm'
       run: echo "Node.js ${{ matrix.node-version }} är installerad och konfigurerad. (Node.js ${{ matrix.node-version }} is set up and configured.)"
 
     - name: Install dependencies
@@ -186,6 +195,14 @@ jobs:
       run: echo "Arkiverar byggartefakter. (Archiving build artifacts.)"
       continue-on-error: false
 
+    - name: Upload Logs on Failure
+      if: failure()
+      uses: actions/upload-artifact@v3
+      with:
+        name: build-logs
+        path: ./logs/
+      run: echo "Laddar upp loggar vid fel. (Uploading logs on failure.)"
+
     - name: Cleanup caches
       if: failure() || cancelled()
       run: |
@@ -202,3 +219,9 @@ jobs:
           echo "Bygget slutfört framgångsrikt, och artifakter publicerades. (Build completed successfully, and artifacts were published.)"
         fi
       continue-on-error: false
+
+    - name: Notify on Failure
+      if: failure()
+      run: |
+        echo "Bygget misslyckades! (Build failed!)"
+        # Add your notification logic here, e.g., Slack, email, etc.
