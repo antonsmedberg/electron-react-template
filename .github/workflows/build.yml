@@ -1,58 +1,142 @@
-name: Build and Test
+name: CI/CD Pipeline
 
 on:
   push:
     branches: [main]
   pull_request:
     branches: [main]
+  workflow_dispatch:
+
+env:
+  NODE_VERSION: 18.x
 
 jobs:
-  build:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [macos-latest, ubuntu-latest, windows-latest]
-        node-version: [18.x]
-      fail-fast: false
+  setup-and-test:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v3
 
+    - name: Use Node.js ${{ env.NODE_VERSION }}
+      uses: actions/setup-node@v3
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+
+    - name: Cache dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.npm
+        key: ${{ runner.OS }}-node-${{ hashFiles('**/package-lock.json') }}
+        restore-keys: |
+          ${{ runner.OS }}-node-
+
+    - name: Install Dependencies
+      run: npm ci
+
+    - name: Lint
+      run: npm run lint
+
+    - name: Type Check
+      run: npm run type-check
+
+    - name: Run tests
+      run: npm test
+
+  build:
+    needs: setup-and-test
+    runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
 
-    - name: Use Node.js ${{ matrix.node-version }}
+    - name: Use Node.js ${{ env.NODE_VERSION }}
       uses: actions/setup-node@v3
       with:
-        node-version: ${{ matrix.node-version }}
+        node-version: ${{ env.NODE_VERSION }}
 
-    - name: Install dependencies and update package-lock.json
-      run: |
-        npm install
-        git config --local user.email "action@github.com"
-        git config --local user.name "GitHub Action"
-        git add package-lock.json
-        git commit -m "Update package-lock.json" || echo "No changes to commit"
-        git push || echo "No changes to push"
+    - name: Cache dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.npm
+        key: ${{ runner.OS }}-node-${{ hashFiles('**/package-lock.json') }}
+        restore-keys: |
+          ${{ runner.OS }}-node-
 
-    - name: Lint and fix
-      run: |
-        npm run lint:fix
-        git add .
-        git commit -m "Auto-fix linting issues" || echo "No changes to commit"
-        git push || echo "No changes to push"
+    - name: Install Dependencies
+      run: npm ci
 
-    - name: Build
-      run: npm run build
+    - name: Build React app
+      run: npm run react-build
 
-    - name: Test
-      run: npm test
+    - name: Build Electron app
+      run: npm run electron-build
 
-    - name: Archive production artifacts
+    - name: Upload artifacts
       uses: actions/upload-artifact@v3
       with:
-        name: dist-files
+        name: dist
         path: dist
 
-    - name: Archive code coverage results
-      uses: actions/upload-artifact@v3
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Download artifacts
+      uses: actions/download-artifact@v3
       with:
-        name: coverage
-        path: coverage
+        name: dist
+        path: dist
+
+    - name: Deploy
+      run: |
+        echo "Deployment step goes here"
+        # Add your deployment logic here
+
+  release:
+    needs: deploy
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+
+    - name: Bump version and push tag
+      id: tag_version
+      uses: anothrNick/github-tag-action@1.61.0
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        DEFAULT_BUMP: patch
+        WITH_V: true
+
+    - name: Create Release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ steps.tag_version.outputs.new_tag }}
+        release_name: Release ${{ steps.tag_version.outputs.new_tag }}
+        body: |
+          Changes in this Release
+          - First Change
+          - Second Change
+        draft: false
+        prerelease: false
+
+    - name: Download artifacts
+      uses: actions/download-artifact@v3
+      with:
+        name: dist
+        path: dist
+
+    - name: Upload Release Asset
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./dist/your-app-name.AppImage
+        asset_name: your-app-name-${{ steps.tag_version.outputs.new_tag }}.AppImage
+        asset_content_type: application/octet-stream
