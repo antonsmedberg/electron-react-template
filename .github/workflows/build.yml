@@ -24,7 +24,6 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v3
-      run: echo "Källa för kod har hämtats. (Source code checked out.)"
 
     - name: Cache npm dependencies
       uses: actions/cache@v3
@@ -38,7 +37,6 @@ jobs:
       uses: actions/setup-node@v3
       with:
         node-version: ${{ matrix.node-version }}
-      run: echo "Node.js ${{ matrix.node-version }} är installerad och konfigurerad. (Node.js ${{ matrix.node-version }} is set up and configured.)"
 
     - name: Install dependencies
       run: |
@@ -192,8 +190,6 @@ jobs:
       with:
         name: build-artifacts
         path: build/
-      run: echo "Arkiverar byggartefakter. (Archiving build artifacts.)"
-      continue-on-error: false
 
     - name: Upload Logs on Failure
       if: failure()
@@ -201,7 +197,6 @@ jobs:
       with:
         name: build-logs
         path: ./logs/
-      run: echo "Laddar upp loggar vid fel. (Uploading logs on failure.)"
 
     - name: Cleanup caches
       if: failure() || cancelled()
