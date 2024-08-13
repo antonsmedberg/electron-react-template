@@ -77,6 +77,24 @@ jobs:
         fi
       timeout-minutes: 5
 
+    - name: Handle Git State Before Version Bump
+      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      run: |
+        echo "Stashing any uncommitted changes..."
+        git stash --include-untracked
+      timeout-minutes: 5
+
+    - name: Generate changelog and version bump
+      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      run: |
+        echo "Generating changelog and bumping version..."
+        npm version patch -m "chore(release): %s"
+        npx auto-changelog -p
+        git push --follow-tags
+        echo "Popping stashed changes..."
+        git stash pop || echo "No stash to pop."
+      timeout-minutes: 10
+
     - name: Package and Publish (macOS)
       if: matrix.os == 'macos-latest'
       run: |
@@ -90,7 +108,7 @@ jobs:
             npm run release
           else
             echo "No valid code signing identity found, proceeding without signing."
-            npm run electron-build -- --publish=always --mac --arm64 --x64 --no-sign
+            npm run electron-build -- --publish=always --mac --arm64 --x64
           fi
         fi
       timeout-minutes: 20
@@ -102,7 +120,7 @@ jobs:
         echo "Handling Windows specific packaging..."
         if [ "$GH_TOKEN_PRESENT" = "false" ]; then
           echo "Skipping publishing due to missing GH_TOKEN."
-          npm run electron-build -- --publish=never --win --x64 --no-sign
+          npm run electron-build -- --publish=never --win --x64
         else
           echo "Publishing Windows artifacts..."
           npm run release
@@ -123,15 +141,6 @@ jobs:
         fi
       timeout-minutes: 20
       continue-on-error: true
-
-    - name: Generate changelog and version bump
-      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-      run: |
-        echo "Generating changelog and bumping version..."
-        npm version patch -m "chore(release): %s"
-        npx auto-changelog -p
-        git push --follow-tags
-      timeout-minutes: 10
 
     - name: Archive build artifacts
       if: always()
