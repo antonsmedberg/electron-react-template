@@ -1,4 +1,4 @@
-name: Build, Test, and Deploy
+name: Build and Test
 
 on:
   push:
@@ -15,127 +15,34 @@ jobs:
         node-version: [18.x]
       fail-fast: false
 
-    env:
-      CI: true
-      ELECTRON_BUILDER_ALLOW_UNRESOLVED_DEPENDENCIES: true
-      GH_TOKEN: ${{ secrets.GH_TOKEN }}
-
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v3
-      with:
-        fetch-depth: 0
+    - uses: actions/checkout@v3
 
-    - name: Cache npm dependencies
-      uses: actions/cache@v3
-      with:
-        path: ~/.npm
-        key: ${{ runner.os }}-node-${{ matrix.node-version }}-${{ hashFiles('**/package-lock.json') }}
-        restore-keys: |
-          ${{ runner.os }}-node-${{ matrix.node-version }}-
-
-    - name: Set up Node.js ${{ matrix.node-version }}
+    - name: Use Node.js ${{ matrix.node-version }}
       uses: actions/setup-node@v3
       with:
         node-version: ${{ matrix.node-version }}
 
     - name: Install dependencies
-      run: |
-        echo "Installing project dependencies..."
-        npm ci || npm install
-        echo "Installing Electron dependencies..."
-        npx electron-builder install-app-deps
-      timeout-minutes: 15
+      run: npm ci
 
-    - name: Run ESLint
-      run: |
-        echo "Running ESLint..."
-        npm run lint:fix || echo "ESLint found issues. Please review the errors."
-      timeout-minutes: 5
-      continue-on-error: true
+    - name: Lint
+      run: npm run lint
 
-    - name: Build application
-      run: |
-        echo "Building the application..."
-        npm run build
-      timeout-minutes: 30
+    - name: Build
+      run: npm run build
 
-    - name: Run tests
-      run: |
-        echo "Running tests..."
-        npm test || echo "Tests failed, but build will continue."
-      timeout-minutes: 15
-      continue-on-error: true
+    - name: Test
+      run: npm test
 
-    - name: Set version
-      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-      run: |
-        echo "Setting version..."
-        VERSION=$(date +"%Y%m%d%H%M")-$(git rev-parse --short HEAD)
-        echo "VERSION=$VERSION" >> $GITHUB_ENV
-        npm version $VERSION --no-git-tag-version
-      timeout-minutes: 5
-
-    - name: Generate changelog
-      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-      run: |
-        echo "Generating changelog..."
-        npx auto-changelog -p
-        git config --local user.email "action@github.com"
-        git config --local user.name "GitHub Action"
-        git add CHANGELOG.md package.json
-        git commit -m "chore(release): Version bump to ${{ env.VERSION }}"
-        git tag -a "v${{ env.VERSION }}" -m "Version ${{ env.VERSION }}"
-      timeout-minutes: 10
-
-    - name: Package and Publish
-      env:
-        GH_TOKEN: ${{ secrets.GH_TOKEN }}
-      run: |
-        if [ -z "$GH_TOKEN" ]; then
-          echo "GH_TOKEN is not set. Skipping publishing steps."
-          npm run electron-build -- --publish=never
-        else
-          echo "Publishing artifacts..."
-          npm run release
-        fi
-      timeout-minutes: 20
-      continue-on-error: true
-
-    - name: Push changes
-      if: github.event_name == 'push' && github.ref == 'refs/heads/main' && env.GH_TOKEN
-      run: |
-        git push origin main --follow-tags
-      timeout-minutes: 5
-
-    - name: Archive build artifacts
-      if: always()
+    - name: Archive production artifacts
       uses: actions/upload-artifact@v3
       with:
-        name: build-artifacts
-        path: dist/
+        name: dist-files
+        path: dist
 
-    - name: Upload Logs on Failure
-      if: failure()
+    - name: Archive code coverage results
       uses: actions/upload-artifact@v3
       with:
-        name: build-logs
-        path: |
-          ./logs/
-          ./npm-debug.log
-      
-    - name: Cleanup caches
-      if: always()
-      run: |
-        echo "Cleaning up npm cache..."
-        npm cache clean --force || echo "Failed to clean npm cache."
-      continue-on-error: true
-
-    - name: Final Status
-      run: |
-        echo "Finalizing build process."
-        if [ -z "$GH_TOKEN" ]; then
-          echo "Warning: GH_TOKEN was not set. Artifacts were not published."
-        else
-          echo "Build completed successfully, and artifacts were published."
-        fi
+        name: coverage
+        path: coverage
