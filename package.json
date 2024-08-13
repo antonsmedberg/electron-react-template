@@ -117,7 +117,8 @@
         "AppImage"
       ],
       "category": "Development",
-      "icon": "build/icon.png"
+      "icon": "build/icon.png",
+      "artifactName": "${productName}-${version}.${ext}"
     },
     "mac": {
       "category": "public.app-category.developer-tools",
