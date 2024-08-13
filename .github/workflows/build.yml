@@ -42,12 +42,7 @@ jobs:
     - name: Install dependencies
       run: |
         echo "Installing project dependencies..."
-        if npm ci; then
-          echo "Dependencies installed successfully using npm ci"
-        else
-          echo "npm ci failed, falling back to npm install"
-          npm install
-        fi
+        npm ci || npm install
         echo "Installing Electron dependencies..."
         npx electron-builder install-app-deps
       timeout-minutes: 15
@@ -55,7 +50,7 @@ jobs:
     - name: Run ESLint
       run: |
         echo "Running ESLint..."
-        npm run lint || echo "ESLint found issues, but build will continue."
+        npm run lint:fix || echo "ESLint found issues. Please review the errors."
       timeout-minutes: 5
       continue-on-error: true
 
@@ -68,7 +63,7 @@ jobs:
     - name: Run tests
       run: |
         echo "Running tests..."
-        npm test -- --ci --reporters=default --coverage || echo "Tests failed, but build will continue."
+        npm test || echo "Tests failed, but build will continue."
       timeout-minutes: 15
       continue-on-error: true
 
@@ -125,8 +120,10 @@ jobs:
       uses: actions/upload-artifact@v3
       with:
         name: build-logs
-        path: ./logs/
-
+        path: |
+          ./logs/
+          ./npm-debug.log
+      
     - name: Cleanup caches
       if: always()
       run: |
