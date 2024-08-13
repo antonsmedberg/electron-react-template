@@ -85,11 +85,11 @@ jobs:
           echo "Skipping publishing due to missing GH_TOKEN."
           npm run electron-build -- --publish=never
         else
-          if security find-identity -v -p codesigning; then
+          if security find-identity -v -p codesigning | grep "Developer ID Application"; then
             echo "Code signing identity found, proceeding with signing and publishing."
             npm run release
           else
-            echo "No code signing identity found, proceeding without signing."
+            echo "No valid code signing identity found, proceeding without signing."
             npm run electron-build -- --publish=always --mac --arm64 --x64 --no-sign
           fi
         fi
