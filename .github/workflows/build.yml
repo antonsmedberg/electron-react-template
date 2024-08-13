@@ -11,11 +11,13 @@ env:
   NODE_VERSION: 18.x
 
 jobs:
-  setup-and-test:
+  lint-and-test:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout Code
       uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
 
     - name: Use Node.js ${{ env.NODE_VERSION }}
       uses: actions/setup-node@v3
@@ -30,17 +32,17 @@ jobs:
         restore-keys: |
           ${{ runner.OS }}-node-
 
-    - name: Install Dependencies and Update package-lock.json
+    - name: Install Dependencies
+      run: npm ci || npm install
+
+    - name: Lint and Fix
       run: |
-        npm install
+        npm run lint:fix
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
-        git add package-lock.json
-        git commit -m "Update package-lock.json" || echo "No changes to commit"
+        git add .
+        git diff --quiet && git diff --staged --quiet || git commit -m "Auto-fix linting issues"
         git push || echo "No changes to push"
-
-    - name: Lint
-      run: npm run lint
 
     - name: Type Check
       run: npm run type-check
@@ -48,8 +50,15 @@ jobs:
     - name: Run tests
       run: npm test
 
+    - name: Upload test results
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: test-results
+        path: coverage
+
   build:
-    needs: setup-and-test
+    needs: lint-and-test
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
@@ -68,7 +77,7 @@ jobs:
           ${{ runner.OS }}-node-
 
     - name: Install Dependencies
-      run: npm install
+      run: npm ci || npm install
 
     - name: Build React app
       run: npm run react-build
@@ -118,6 +127,7 @@ jobs:
         WITH_V: true
 
     - name: Create Release
+      id: create_release
       uses: actions/create-release@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -146,3 +156,16 @@ jobs:
         asset_path: ./dist/your-app-name.AppImage
         asset_name: your-app-name-${{ steps.tag_version.outputs.new_tag }}.AppImage
         asset_content_type: application/octet-stream
+
+  cleanup:
+    needs: [lint-and-test, build, deploy, release]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+    - name: Delete workflow runs
+      uses: Mattraks/delete-workflow-runs@v2
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        repository: ${{ github.repository }}
+        retain_days: 30
+        keep_minimum_runs: 6
