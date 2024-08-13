@@ -62,7 +62,8 @@
     "format": "prettier --write \"**/*.{js,jsx,json,md}\"",
     "react-start": "cross-env BROWSER=none react-scripts start",
     "electron-start": "wait-on tcp:3000 && electron .",
-    "electron-build": "electron-builder build --linux"
+    "electron-build": "electron-builder build --linux",
+    "postinstall": "electron-builder install-app-deps"
   },
   "eslintConfig": {
     "extends": [
@@ -91,13 +92,14 @@
       "package.json"
     ],
     "directories": {
-      "buildResources": "assets"
+      "buildResources": "build"
     },
     "linux": {
       "target": [
         "AppImage"
       ],
-      "category": "Development"
+      "category": "Development",
+      "icon": "build/icon.png"
     }
   }
 }
