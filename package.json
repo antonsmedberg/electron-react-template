@@ -56,6 +56,7 @@
     "build": "npm run react-build && npm run electron-build",
     "react-build": "react-scripts build",
     "test": "react-scripts test --env=jsdom --passWithNoTests",
+    "test:ci": "react-scripts test --env=jsdom --passWithNoTests --ci --coverage",
     "eject": "react-scripts eject",
     "lint": "eslint .",
     "lint:fix": "eslint --fix . && prettier --write \"**/*.{js,jsx,json,md}\"",
@@ -63,13 +64,30 @@
     "react-start": "cross-env BROWSER=none react-scripts start",
     "electron-start": "wait-on tcp:3000 && electron .",
     "electron-build": "electron-builder build --linux",
-    "postinstall": "electron-builder install-app-deps"
+    "postinstall": "electron-builder install-app-deps",
+    "preelectron-build": "npm run react-build"
   },
   "eslintConfig": {
     "extends": [
       "react-app",
       "react-app/jest"
     ]
+  },
+  "jest": {
+    "collectCoverageFrom": [
+      "src/**/*.{js,jsx,ts,tsx}",
+      "!src/**/*.d.ts",
+      "!src/index.js",
+      "!src/serviceWorker.js"
+    ],
+    "coverageThreshold": {
+      "global": {
+        "branches": 80,
+        "functions": 80,
+        "lines": 80,
+        "statements": 80
+      }
+    }
   },
   "browserslist": {
     "production": [
@@ -100,6 +118,16 @@
       ],
       "category": "Development",
       "icon": "build/icon.png"
+    },
+    "mac": {
+      "category": "public.app-category.developer-tools",
+      "icon": "build/icon.icns"
+    },
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "icon": "build/icon.ico"
     }
   }
 }
