@@ -13,9 +13,9 @@ jobs:
       matrix:
         os: [macos-latest, ubuntu-latest, windows-latest]
         node-version: [18.x]
-      exclude:
-        - os: windows-latest
-          node-version: 18.x  # Example exclusion if not needed
+      fail-fast: false  # Ensures that other jobs continue to run even if one fails
+      max-parallel: 3  # Controls the maximum number of jobs that can run simultaneously
+
 
     env:
       CI: true
