@@ -32,8 +32,12 @@ jobs:
         git commit -m "Update package-lock.json" || echo "No changes to commit"
         git push || echo "No changes to push"
 
-    - name: Lint
-      run: npm run lint
+    - name: Lint and fix
+      run: |
+        npm run lint:fix
+        git add .
+        git commit -m "Auto-fix linting issues" || echo "No changes to commit"
+        git push || echo "No changes to push"
 
     - name: Build
       run: npm run build
