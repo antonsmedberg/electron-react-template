@@ -22,8 +22,6 @@ jobs:
     steps:
     - name: Checkout Code
       uses: actions/checkout@v3
-      with:
-        fetch-depth: 0
 
     - name: Use Node.js ${{ env.NODE_VERSION }}
       uses: actions/setup-node@v3
@@ -63,17 +61,19 @@ jobs:
     - name: Install Dependencies
       run: npm ci
 
+    - name: Install ImageMagick
+      run: sudo apt-get update && sudo apt-get install -y imagemagick
+
     - name: Build React app
       run: npm run react-build
 
-    - name: Copy icon
+    - name: Create placeholder icon if missing
       run: |
-        if [ -f "public/icon.png" ]; then
-          cp public/icon.png build/icon.png
-        else
-          echo "Warning: icon.png not found in public directory"
-          exit 1
+        if [ ! -f "public/icon.png" ]; then
+          echo "Creating placeholder icon..."
+          convert -size 512x512 xc:transparent -fill black -draw "circle 256,256 256,0" public/icon.png
         fi
+        cp public/icon.png build/icon.png
 
     - name: Build Electron app
       run: npm run electron-build
