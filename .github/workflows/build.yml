@@ -16,7 +16,7 @@ jobs:
       exclude:
         - os: windows-latest
           node-version: 18.x  # Example exclusion if not needed
-          
+
     env:
       CI: true
       ELECTRON_BUILDER_ALLOW_UNRESOLVED_DEPENDENCIES: true
