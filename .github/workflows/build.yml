@@ -84,6 +84,14 @@ jobs:
     - name: Build React app
       run: npm run react-build
 
+    - name: Copy icon
+      run: |
+        if [ -f "public/icon.png" ]; then
+          cp public/icon.png build/icon.png
+        else
+          echo "Warning: icon.png not found in public directory"
+        fi
+
     - name: Build Electron app
       run: npm run electron-build
 
@@ -155,7 +163,7 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ./dist/your-app-name.AppImage
+        asset_path: ./dist/your-app-name-${{ steps.tag_version.outputs.new_tag }}.AppImage
         asset_name: your-app-name-${{ steps.tag_version.outputs.new_tag }}.AppImage
         asset_content_type: application/octet-stream
 
