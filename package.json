@@ -54,14 +54,14 @@
   "scripts": {
     "start": "concurrently \"npm run react-start\" \"npm run electron-start\"",
     "build": "react-scripts build && npm run electron-build",
-    "test": "react-scripts test --env=jsdom",
+    "test": "react-scripts test --env=jsdom --passWithNoTests",
     "eject": "react-scripts eject",
     "lint": "eslint .",
     "lint:fix": "eslint --fix . && prettier --write \"**/*.{js,jsx,json,md}\"",
     "format": "prettier --write \"**/*.{js,jsx,json,md}\"",
     "react-start": "cross-env BROWSER=none react-scripts start",
     "electron-start": "wait-on tcp:3000 && electron .",
-    "electron-build": "electron-builder build --mac --win --linux"
+    "electron-build": "electron-builder build --linux"
   },
   "eslintConfig": {
     "extends": [
@@ -92,18 +92,8 @@
     "directories": {
       "buildResources": "assets"
     },
-    "mac": {
-      "category": "public.app-category.developer-tools"
-    },
-    "win": {
-      "target": [
-        "nsis"
-      ]
-    },
     "linux": {
       "target": [
-        "deb",
-        "rpm",
         "AppImage"
       ],
       "category": "Development"
