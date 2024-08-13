@@ -108,9 +108,11 @@
     },
     "mac": {
       "icon": "public/icon.icns",
-      "category": "public.app-category.developer-tools"
+      "category": "public.app-category.developer-tools",
+      "artifactName": "${productName}-${version}-${arch}-${os}.${ext}"
     },
     "dmg": {
+      "artifactName": "${productName}-${version}-${arch}.${ext}",
       "contents": [
         {
           "x": 130,
@@ -127,7 +129,8 @@
     "win": {
       "target": [
         "nsis"
-      ]
+      ],
+      "artifactName": "${productName}-${version}-${arch}.${ext}"
     },
     "linux": {
       "target": [
@@ -136,7 +139,8 @@
         "AppImage"
       ],
       "category": "Development",
-      "maintainer": "Your Name <youremail@example.com>"
+      "maintainer": "Your Name <youremail@example.com>",
+      "artifactName": "${productName}-${version}-${arch}.${ext}"
     }
   }
 }
