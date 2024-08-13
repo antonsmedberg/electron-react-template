@@ -10,9 +10,18 @@ if (process.env.GH_TOKEN) {
   
   try {
     console.log(`Deleting existing release v${version}...`);
-    execSync(`gh release delete v${version} -y`, { stdio: 'inherit' });
+    execSync(`gh release delete v${version} --yes`, { stdio: 'inherit' });
+    console.log(`Deleted existing release v${version}.`);
   } catch (error) {
-    console.log(`No existing release v${version} found. Proceeding with creation.`);
+    console.log(`No existing release v${version} found or failed to delete. Error: ${error.message}`);
+  }
+
+  try {
+    console.log(`Deleting existing tag v${version}...`);
+    execSync(`git push origin :refs/tags/v${version}`, { stdio: 'inherit' });
+    console.log(`Deleted existing tag v${version}.`);
+  } catch (error) {
+    console.log(`No existing tag v${version} found or failed to delete. Error: ${error.message}`);
   }
 
   try {
