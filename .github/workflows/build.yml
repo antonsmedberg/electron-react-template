@@ -147,18 +147,23 @@ jobs:
         name: dist
         path: dist
 
+    - name: List dist directory contents
+      run: ls -R dist
+
     - name: Find AppImage
       id: find_appimage
       run: |
         APPIMAGE=$(find dist -name "*.AppImage" | head -n 1)
         if [ -z "$APPIMAGE" ]; then
           echo "AppImage not found"
-          echo "APPIMAGE_PATH=" >> $GITHUB_ENV
-          echo "APPIMAGE_NAME=AppImage-not-found" >> $GITHUB_ENV
+          echo "APPIMAGE_PATH=./README.md" >> $GITHUB_ENV
+          echo "APPIMAGE_NAME=AppImage-not-found.txt" >> $GITHUB_ENV
         else
           echo "APPIMAGE_PATH=$APPIMAGE" >> $GITHUB_ENV
           echo "APPIMAGE_NAME=$(basename $APPIMAGE)" >> $GITHUB_ENV
         fi
+        echo "Found APPIMAGE_PATH: $APPIMAGE_PATH"
+        echo "Found APPIMAGE_NAME: $APPIMAGE_NAME"
 
     - name: Upload Release Asset
       uses: actions/upload-release-asset@v1
@@ -169,18 +174,6 @@ jobs:
         asset_path: ${{ env.APPIMAGE_PATH }}
         asset_name: ${{ env.APPIMAGE_NAME }}
         asset_content_type: application/octet-stream
-      if: env.APPIMAGE_PATH != ''
-
-    - name: Upload Dummy Asset if AppImage not found
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ./README.md
-        asset_name: AppImage-not-found.txt
-        asset_content_type: text/plain
-      if: env.APPIMAGE_PATH == ''
 
   cleanup:
     needs: [lint-and-test, build, deploy, release]
