@@ -13,9 +13,7 @@ jobs:
       matrix:
         os: [macos-latest, ubuntu-latest, windows-latest]
         node-version: [18.x]
-      fail-fast: false  # Ensures that other jobs continue to run even if one fails
-      max-parallel: 3  # Controls the maximum number of jobs that can run simultaneously
-
+      fail-fast: false
 
     env:
       CI: true
@@ -25,6 +23,8 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
 
     - name: Cache npm dependencies
       uses: actions/cache@v3
@@ -41,156 +41,80 @@ jobs:
 
     - name: Install dependencies
       run: |
-        echo "Installerar projektberoenden... (Installing project dependencies...)"
-        npm install
-        echo "Installerar Electron-beroenden... (Installing Electron dependencies...)"
+        echo "Installing project dependencies..."
+        npm ci
+        echo "Installing Electron dependencies..."
         npx electron-builder install-app-deps
       timeout-minutes: 15
 
-    - name: Run ESLint with auto-fix
+    - name: Run ESLint
       run: |
-        echo "Kör ESLint med automatisk fix... (Running ESLint with auto-fix...)"
-        npm run lint:fix || echo "ESLint hittade problem, men bygget kommer att fortsätta. (ESLint found issues, but build will continue.)"
-      timeout-minutes: 5
-      continue-on-error: true
-
-    - name: Check for remaining linting errors
-      run: |
-        echo "Kontrollerar kvarvarande lintning-fel... (Checking for remaining linting errors...)"
-        npm run lint || echo "Lintning hittade problem, men bygget kommer att fortsätta. (Linting found issues, but build will continue.)"
+        echo "Running ESLint..."
+        npm run lint || echo "ESLint found issues, but build will continue."
       timeout-minutes: 5
       continue-on-error: true
 
     - name: Build application
       run: |
-        echo "Bygger applikationen... (Building the application...)"
+        echo "Building the application..."
         npm run build
       timeout-minutes: 30
 
     - name: Run tests
       run: |
-        echo "Kör tester... (Running tests...)"
+        echo "Running tests..."
         npm install jest-junit --save-dev
-        npm test -- --ci --reporters=jest-junit --coverage || echo "Tester misslyckades, men bygget kommer att fortsätta. (Tests failed, but build will continue.)"
+        npm test -- --ci --reporters=jest-junit --coverage || echo "Tests failed, but build will continue."
       timeout-minutes: 15
       continue-on-error: true
 
-    - name: Check for GitHub Token
-      id: check_token
-      run: |
-        echo "Kontrollerar om GitHub-token är närvarande... (Checking for GitHub Token...)"
-        if [ -z "$GH_TOKEN" ]; then
-          echo "GH_TOKEN är inte inställt. Hoppar över publiceringssteg. (GH_TOKEN is not set. Skipping publishing steps.)"
-          echo "GH_TOKEN_PRESENT=false" >> $GITHUB_ENV
-        else
-          echo "GH_TOKEN är inställt. (GH_TOKEN is set.)"
-          echo "GH_TOKEN_PRESENT=true" >> $GITHUB_ENV
-        fi
-      timeout-minutes: 5
-
-    - name: Handle Git State Before Version Bump
+    - name: Set version
       if: github.event_name == 'push' && github.ref == 'refs/heads/main'
       run: |
-        echo "Sparar ändringar som inte har åtagits... (Stashing any uncommitted changes...)"
-        git stash --include-untracked
-      timeout-minutes: 5
-
-    - name: Auto Increment Version
-      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-      run: |
-        echo "Automatiskt ökar versionen... (Automatically incrementing version...)"
+        echo "Setting version..."
         VERSION=$(date +"%Y%m%d%H%M")-$(git rev-parse --short HEAD)
-        echo "Version: $VERSION"
+        echo "VERSION=$VERSION" >> $GITHUB_ENV
         npm version $VERSION --no-git-tag-version
-        echo "Ny version satt till $VERSION. (New version set to $VERSION.)"
       timeout-minutes: 5
 
-    - name: Generate changelog and version bump
+    - name: Generate changelog
       if: github.event_name == 'push' && github.ref == 'refs/heads/main'
       run: |
-        echo "Genererar ändringslogg och åtagande av versionsbump... (Generating changelog and committing version bump...)"
+        echo "Generating changelog..."
         npx auto-changelog -p
-        git commit -am "chore(release): Version bump to $VERSION"
-        git tag -a "v$VERSION" -m "Version $VERSION"
-        git push origin main --follow-tags
-        echo "Återställer stashed ändringar... (Popping stashed changes...)"
-        git stash pop || echo "Ingen stash att återställa. (No stash to pop.)"
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add CHANGELOG.md package.json
+        git commit -m "chore(release): Version bump to ${{ env.VERSION }}"
+        git tag -a "v${{ env.VERSION }}" -m "Version ${{ env.VERSION }}"
       timeout-minutes: 10
 
-    - name: Delete Existing Assets (macOS)
-      if: matrix.os == 'macos-latest' && steps.check_token.outputs.GH_TOKEN_PRESENT == 'true'
+    - name: Package and Publish
+      env:
+        GH_TOKEN: ${{ secrets.GH_TOKEN }}
       run: |
-        echo "Tar bort befintliga tillgångar för macOS... (Deleting existing assets for macOS...)"
-        ASSET_NAME="Your App Name-$VERSION-arm64-mac.zip.blockmap"
-        RELEASE_ID=$(curl -s \
-          -H "Authorization: token $GH_TOKEN" \
-          https://api.github.com/repos/${{ github.repository }}/releases/latest | jq -r .id)
-        ASSET_ID=$(curl -s \
-          -H "Authorization: token $GH_TOKEN" \
-          https://api.github.com/repos/${{ github.repository }}/releases/$RELEASE_ID/assets | jq -r ".[] | select(.name==\"$ASSET_NAME\") | .id")
-        if [ -n "$ASSET_ID" ]; then
-          echo "Tar bort tillgång $ASSET_NAME med ID $ASSET_ID (Deleting asset $ASSET_NAME with ID $ASSET_ID)"
-          curl -X DELETE \
-            -H "Authorization: token $GH_TOKEN" \
-            https://api.github.com/repos/${{ github.repository }}/releases/assets/$ASSET_ID
-        else
-          echo "Ingen befintlig tillgång hittades med namnet $ASSET_NAME. (No existing asset found with the name $ASSET_NAME.)"
-        fi
-      timeout-minutes: 5
-
-    - name: Package and Publish (macOS)
-      if: matrix.os == 'macos-latest'
-      run: |
-        echo "Hantera macOS-specifik paketering... (Handling macOS specific packaging...)"
-        if [ "$GH_TOKEN_PRESENT" = "false" ]; then
-          echo "Hoppar över publicering på grund av saknad GH_TOKEN. (Skipping publishing due to missing GH_TOKEN.)"
+        if [ -z "$GH_TOKEN" ]; then
+          echo "GH_TOKEN is not set. Skipping publishing steps."
           npm run electron-build -- --publish=never
         else
-          if security find-identity -v -p codesigning | grep "Developer ID Application"; then
-            echo "Kodsigneringsidentitet hittad, fortsätter med signering och publicering. (Code signing identity found, proceeding with signing and publishing.)"
-            npm run release -- --version=$VERSION
-          else
-            echo "Ingen giltig kodsigneringsidentitet hittad, fortsätter utan signering. (No valid code signing identity found, proceeding without signing.)"
-            npm run electron-build -- --publish=always --mac --arm64 --x64 --version=$VERSION
-          fi
+          echo "Publishing artifacts..."
+          npm run release
         fi
       timeout-minutes: 20
       continue-on-error: true
 
-    - name: Package and Publish (Windows)
-      if: matrix.os == 'windows-latest'
+    - name: Push changes
+      if: github.event_name == 'push' && github.ref == 'refs/heads/main' && env.GH_TOKEN
       run: |
-        echo "Hantera Windows-specifik paketering... (Handling Windows specific packaging...)"
-        if [ "$GH_TOKEN_PRESENT" = "false" ]; then
-          echo "Hoppar över publicering på grund av saknad GH_TOKEN. (Skipping publishing due to missing GH_TOKEN.)"
-          npm run electron-build -- --publish=never --win --x64 --version=$VERSION
-        else
-          echo "Publicerar Windows-artiklar... (Publishing Windows artifacts...)"
-          npm run release -- --version=$VERSION
-        fi
-      timeout-minutes: 20
-      continue-on-error: true
-
-    - name: Package and Publish (Linux)
-      if: matrix.os == 'ubuntu-latest'
-      run: |
-        echo "Hantera Linux-specifik paketering... (Handling Linux specific packaging...)"
-        if [ "$GH_TOKEN_PRESENT" = "false" ]; then
-          echo "Hoppar över publicering på grund av saknad GH_TOKEN. (Skipping publishing due to missing GH_TOKEN.)"
-          npm run electron-build -- --publish=never --version=$VERSION
-        else
-          echo "Publicerar Linux-artiklar... (Publishing Linux artifacts...)"
-          npm run release -- --version=$VERSION
-        fi
-      timeout-minutes: 20
-      continue-on-error: true
+        git push origin main --follow-tags
+      timeout-minutes: 5
 
     - name: Archive build artifacts
       if: always()
       uses: actions/upload-artifact@v3
       with:
         name: build-artifacts
-        path: build/
+        path: dist/
 
     - name: Upload Logs on Failure
       if: failure()
@@ -200,24 +124,17 @@ jobs:
         path: ./logs/
 
     - name: Cleanup caches
-      if: failure() || cancelled()
+      if: always()
       run: |
-        echo "Rensar npm-cache... (Cleaning up npm cache...)"
-        npm cache clean --force || echo "Misslyckades med att rensa npm-cache. (Failed to clean npm cache.)"
+        echo "Cleaning up npm cache..."
+        npm cache clean --force || echo "Failed to clean npm cache."
       continue-on-error: true
 
     - name: Final Status
       run: |
-        echo "Slutför byggprocessen. (Finalizing build process.)"
-        if [ "$GH_TOKEN_PRESENT" = "false" ]; then
-          echo "Varning: GH_TOKEN var inte inställt. Artifakter publicerades inte. (Warning: GH_TOKEN was not set. Artifacts were not published.)"
+        echo "Finalizing build process."
+        if [ -z "$GH_TOKEN" ]; then
+          echo "Warning: GH_TOKEN was not set. Artifacts were not published."
         else
-          echo "Bygget slutfört framgångsrikt, och artifakter publicerades. (Build completed successfully, and artifacts were published.)"
+          echo "Build completed successfully, and artifacts were published."
         fi
-      continue-on-error: false
-
-    - name: Notify on Failure
-      if: failure()
-      run: |
-        echo "Bygget misslyckades! (Build failed!)"
-        # Add your notification logic here, e.g., Slack, email, etc.
