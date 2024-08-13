@@ -68,6 +68,7 @@ jobs:
     - name: Check for GitHub Token
       id: check_token
       run: |
+        echo "Checking for GitHub Token..."
         if [ -z "$GH_TOKEN" ]; then
           echo "GH_TOKEN is not set. Skipping publishing steps."
           echo "GH_TOKEN_PRESENT=false" >> $GITHUB_ENV
@@ -84,16 +85,48 @@ jobs:
         git stash --include-untracked
       timeout-minutes: 5
 
+    - name: Auto Increment Version
+      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      run: |
+        echo "Automatically incrementing version..."
+        VERSION=$(date +"%Y%m%d%H%M")-$(git rev-parse --short HEAD)
+        echo "Version: $VERSION"
+        npm version $VERSION --no-git-tag-version
+        echo "New version set to $VERSION"
+      timeout-minutes: 5
+
     - name: Generate changelog and version bump
       if: github.event_name == 'push' && github.ref == 'refs/heads/main'
       run: |
-        echo "Generating changelog and bumping version..."
-        npm version patch -m "chore(release): %s"
+        echo "Generating changelog and committing version bump..."
         npx auto-changelog -p
-        git push --follow-tags
+        git commit -am "chore(release): Version bump to $VERSION"
+        git tag -a "v$VERSION" -m "Version $VERSION"
+        git push origin main --follow-tags
         echo "Popping stashed changes..."
         git stash pop || echo "No stash to pop."
       timeout-minutes: 10
+
+    - name: Delete Existing Assets (macOS)
+      if: matrix.os == 'macos-latest' && steps.check_token.outputs.GH_TOKEN_PRESENT == 'true'
+      run: |
+        echo "Deleting existing assets for macOS..."
+        ASSET_NAME="Your App Name-$VERSION-arm64-mac.zip.blockmap"
+        RELEASE_ID=$(curl -s \
+          -H "Authorization: token $GH_TOKEN" \
+          https://api.github.com/repos/${{ github.repository }}/releases/latest | jq -r .id)
+        ASSET_ID=$(curl -s \
+          -H "Authorization: token $GH_TOKEN" \
+          https://api.github.com/repos/${{ github.repository }}/releases/$RELEASE_ID/assets | jq -r ".[] | select(.name==\"$ASSET_NAME\") | .id")
+        if [ -n "$ASSET_ID" ]; then
+          echo "Deleting asset $ASSET_NAME with ID $ASSET_ID"
+          curl -X DELETE \
+            -H "Authorization: token $GH_TOKEN" \
+            https://api.github.com/repos/${{ github.repository }}/releases/assets/$ASSET_ID
+        else
+          echo "No existing asset found with the name $ASSET_NAME."
+        fi
+      timeout-minutes: 5
 
     - name: Package and Publish (macOS)
       if: matrix.os == 'macos-latest'
@@ -105,10 +138,10 @@ jobs:
         else
           if security find-identity -v -p codesigning | grep "Developer ID Application"; then
             echo "Code signing identity found, proceeding with signing and publishing."
-            npm run release
+            npm run release -- --version=$VERSION
           else
             echo "No valid code signing identity found, proceeding without signing."
-            npm run electron-build -- --publish=always --mac --arm64 --x64
+            npm run electron-build -- --publish=always --mac --arm64 --x64 --version=$VERSION
           fi
         fi
       timeout-minutes: 20
@@ -120,10 +153,10 @@ jobs:
         echo "Handling Windows specific packaging..."
         if [ "$GH_TOKEN_PRESENT" = "false" ]; then
           echo "Skipping publishing due to missing GH_TOKEN."
-          npm run electron-build -- --publish=never --win --x64
+          npm run electron-build -- --publish=never --win --x64 --version=$VERSION
         else
           echo "Publishing Windows artifacts..."
-          npm run release
+          npm run release -- --version=$VERSION
         fi
       timeout-minutes: 20
       continue-on-error: true
@@ -134,10 +167,10 @@ jobs:
         echo "Handling Linux specific packaging..."
         if [ "$GH_TOKEN_PRESENT" = "false" ]; then
           echo "Skipping publishing due to missing GH_TOKEN."
-          npm run electron-build -- --publish=never
+          npm run electron-build -- --publish=never --version=$VERSION
         else
           echo "Publishing Linux artifacts..."
-          npm run release
+          npm run release -- --version=$VERSION
         fi
       timeout-minutes: 20
       continue-on-error: true
