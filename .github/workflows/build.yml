@@ -85,8 +85,13 @@ jobs:
           echo "Skipping publishing due to missing GH_TOKEN."
           npm run electron-build -- --publish=never
         else
-          echo "Publishing macOS artifacts..."
-          npm run release
+          if security find-identity -v -p codesigning; then
+            echo "Code signing identity found, proceeding with signing and publishing."
+            npm run release
+          else
+            echo "No code signing identity found, proceeding without signing."
+            npm run electron-build -- --publish=always --mac --arm64 --x64 --no-sign
+          fi
         fi
       timeout-minutes: 20
       continue-on-error: true
@@ -97,7 +102,7 @@ jobs:
         echo "Handling Windows specific packaging..."
         if [ "$GH_TOKEN_PRESENT" = "false" ]; then
           echo "Skipping publishing due to missing GH_TOKEN."
-          npm run electron-build -- --publish=never
+          npm run electron-build -- --publish=never --win --x64 --no-sign
         else
           echo "Publishing Windows artifacts..."
           npm run release
