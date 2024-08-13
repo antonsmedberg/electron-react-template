@@ -17,6 +17,7 @@ jobs:
     env:
       CI: true
       ELECTRON_BUILDER_ALLOW_UNRESOLVED_DEPENDENCIES: true
+      GH_TOKEN: ${{ secrets.GH_TOKEN }}
 
     steps:
     - name: Checkout code
@@ -74,7 +75,7 @@ jobs:
         fi
       timeout-minutes: 5
 
-    - name: Package without Publishing (macOS)
+    - name: Package and Publish (macOS)
       if: matrix.os == 'macos-latest'
       run: |
         echo "Handling macOS specific packaging..."
@@ -88,7 +89,7 @@ jobs:
       timeout-minutes: 20
       continue-on-error: true
 
-    - name: Package without Publishing (Windows)
+    - name: Package and Publish (Windows)
       if: matrix.os == 'windows-latest'
       run: |
         echo "Handling Windows specific packaging..."
@@ -102,7 +103,7 @@ jobs:
       timeout-minutes: 20
       continue-on-error: true
 
-    - name: Package without Publishing (Linux)
+    - name: Package and Publish (Linux)
       if: matrix.os == 'ubuntu-latest'
       run: |
         echo "Handling Linux specific packaging..."
