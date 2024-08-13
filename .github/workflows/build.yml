@@ -36,7 +36,7 @@ jobs:
       run: npm run lint
 
     - name: Run tests
-      run: npm test
+      run: npm run test:ci
 
     - name: Upload test results
       uses: actions/upload-artifact@v3
@@ -144,14 +144,21 @@ jobs:
         name: dist
         path: dist
 
+    - name: Find AppImage
+      id: find_appimage
+      run: |
+        APPIMAGE=$(find dist -name "*.AppImage" | head -n 1)
+        echo "APPIMAGE_PATH=$APPIMAGE" >> $GITHUB_ENV
+        echo "APPIMAGE_NAME=$(basename $APPIMAGE)" >> $GITHUB_ENV
+
     - name: Upload Release Asset
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ./dist/your-app-name-${{ steps.tag_version.outputs.new_tag }}.AppImage
-        asset_name: your-app-name-${{ steps.tag_version.outputs.new_tag }}.AppImage
+        asset_path: ${{ env.APPIMAGE_PATH }}
+        asset_name: ${{ env.APPIMAGE_NAME }}
         asset_content_type: application/octet-stream
 
   cleanup:
